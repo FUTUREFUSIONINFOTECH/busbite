@@ -1094,6 +1094,42 @@ function addNotification(
 
 async function startServer() {
   const app = express();
+
+  // CORS: allow the deployed GitHub Pages frontend and local Vite development.
+  // Keep this middleware before express.json() and every API route.
+  const allowedOrigins = new Set([
+    'https://futurefusioninfotech.github.io',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ]);
+
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (origin && allowedOrigins.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+
+    // Respond to browser preflight requests before they reach API handlers.
+    if (req.method === 'OPTIONS') {
+      if (origin && !allowedOrigins.has(origin)) {
+        return res.status(403).end();
+      }
+      return res.status(204).end();
+    }
+
+    if (origin && !allowedOrigins.has(origin)) {
+      return res.status(403).json({ error: 'Origin not allowed by CORS policy.' });
+    }
+
+    next();
+  });
+
   app.use(express.json());
 
   const server = http.createServer(app);
