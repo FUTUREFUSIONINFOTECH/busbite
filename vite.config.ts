@@ -11,44 +11,41 @@ const rootDir = path.dirname(__filename);
 
 const disableHmr = process.env.DISABLE_HMR === 'true';
 
-export default defineConfig(() => {
-  return {
-    plugins: [
-      react(),
-      tailwindcss(),
+export default defineConfig(() => ({
+  // GitHub Pages repository URL: /busbite/
+  base: '/busbite/',
 
-      // Preserve copying src/assets into dist.
-      {
-        name: 'copy-unbundled-src-assets',
-        apply: 'build',
+  plugins: [
+    react(),
+    tailwindcss(),
 
-        closeBundle() {
-          const distDir = path.resolve(rootDir, 'dist');
-          const srcAssets = path.resolve(rootDir, 'src/assets');
-          const distAssets = path.resolve(distDir, 'src/assets');
+    {
+      name: 'copy-unbundled-src-assets',
+      apply: 'build',
 
-          if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
-            fs.cpSync(srcAssets, distAssets, {
-              recursive: true,
-              force: true,
-            });
-          }
-        },
-      },
-    ],
+      closeBundle() {
+        const distDir = path.resolve(rootDir, 'dist');
+        const srcAssets = path.resolve(rootDir, 'src/assets');
+        const distAssets = path.resolve(distDir, 'src/assets');
 
-    resolve: {
-      alias: {
-        '@': rootDir,
+        if (fs.existsSync(srcAssets)) {
+          fs.cpSync(srcAssets, distAssets, {
+            recursive: true,
+            force: true,
+          });
+        }
       },
     },
+  ],
 
-    server: {
-      // Preserve AI Studio HMR configuration.
-      hmr: disableHmr ? false : undefined,
-
-      // Disable file watching when requested.
-      watch: disableHmr ? null : undefined,
+  resolve: {
+    alias: {
+      '@': rootDir,
     },
-  };
-});
+  },
+
+  server: {
+    hmr: disableHmr ? false : undefined,
+    watch: disableHmr ? null : undefined,
+  },
+}));
