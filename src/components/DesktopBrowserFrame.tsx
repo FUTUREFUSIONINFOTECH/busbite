@@ -50,7 +50,7 @@ export function DesktopBrowserFrame({
                 </div>
                 <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-emerald-100 truncate">
                   <img
-                    src="/assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png"
+                    src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
                     alt="BusBite"
                     className="w-7 h-7 rounded-md object-contain bg-white shrink-0"
                   />

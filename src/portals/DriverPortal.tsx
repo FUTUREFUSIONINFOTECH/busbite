@@ -224,7 +224,7 @@ export function DriverPortal({ state, post, patch, tourSignal }: DriverPortalPro
       subtitle={`${crewMode === 'DRIVER' ? 'Driver' : 'Conductor'} · ${vehicle.regNumber}`}
       brandIcon={
         <img
-          src="/assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png"
+          src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
           alt="BusBite"
           className="w-full h-full object-contain"
         />
