@@ -22,6 +22,34 @@ import { MobilePhoneFrame } from '../components/MobilePhoneFrame';
 import { RouteMapVisualizer } from '../components/RouteMapVisualizer';
 import type { OrderStatus, PlatformState } from '../types/platform';
 
+/**
+ * Resolve menu image paths for the GitHub Pages deployment (/busbite/).
+ * Supports API paths (/assets/images/...), legacy source paths
+ * (/src/assets/images/...), and absolute external image URLs.
+ */
+const getRestaurantImageUrl = (imagePath?: string | null): string => {
+  if (!imagePath) return '';
+  const value = imagePath.trim();
+  if (!value) return '';
+
+  if (/^(https?:)?\/\//i.test(value) || /^(data|blob):/i.test(value)) {
+    return value;
+  }
+
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const cleanPath = value
+    .replace(/^\/+/, '')
+    .replace(/^src\/assets\//, 'assets/');
+  const baseWithoutLeadingSlash = base.replace(/^\/+/, '');
+
+  if (cleanPath.startsWith(baseWithoutLeadingSlash)) {
+    return `/${cleanPath}`;
+  }
+
+  return `${base}${cleanPath}`;
+};
+
 interface RestaurantPortalProps {
   state: PlatformState;
   post: <T = unknown>(url: string, body?: unknown) => Promise<T>;
@@ -700,10 +728,12 @@ export function RestaurantPortal({ state, post, patch, tourSignal }: RestaurantP
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <img
-                          src={item.image}
+                          src={getRestaurantImageUrl(item.image)}
                           alt={item.name}
                           className="w-14 h-14 rounded-xl object-cover shrink-0"
-                          referrerPolicy="no-referrer"
+                          onError={(event) => {
+                            console.error('Restaurant menu image failed:', event.currentTarget.src);
+                          }}
                         />
                         <div className="min-w-0">
                           <div className="text-xs font-bold text-slate-900 truncate">{item.name}</div>
@@ -1207,10 +1237,12 @@ export function RestaurantPortal({ state, post, patch, tourSignal }: RestaurantP
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <img
-                    src={item.image}
+                    src={getRestaurantImageUrl(item.image)}
                     alt={item.name}
                     className="w-12 h-12 rounded-xl object-cover shrink-0"
-                    referrerPolicy="no-referrer"
+                    onError={(event) => {
+                      console.error('Restaurant menu image failed:', event.currentTarget.src);
+                    }}
                   />
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-slate-900 truncate">{item.name}</div>
