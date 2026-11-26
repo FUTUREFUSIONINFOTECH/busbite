@@ -80,7 +80,7 @@ export default function App() {
             className="inline-flex items-center gap-2.5 text-lg sm:text-xl font-extrabold tracking-tight text-emerald-900 whitespace-nowrap shrink-0 font-display"
           >
             <img
-              src={`${import.meta.env.BASE_URL}assets/images/BusBite_Mobile_App_Logo_012a5e2c.png`}
+              src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
               alt="BusBite Logo"
               className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl object-contain bg-white border border-emerald-200/80 shadow-xs"
             />
@@ -294,7 +294,7 @@ export default function App() {
         <div className="max-w-[1100px] mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4 shrink-0">
             <img
-              src={`${import.meta.env.BASE_URL}assets/images/BusBite_Mobile_App_Logo_012a5e2c.png`}
+              src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
               alt="BusBite Logo"
               className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl object-contain bg-white border border-emerald-200/80 shadow-md shrink-0"
             />

@@ -566,7 +566,7 @@ export function PassengerPortal({
       subtitle={`${vehicle.regNumber} · ${route.origin.split(' ')[0]} → ${route.destination.split(' ')[0]}`}
       brandIcon={
         <img
-          src={`${import.meta.env.BASE_URL}assets/images/BusBite_Mobile_App_Logo_012a5e2c.png`}
+          src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
           alt="BusBite"
           className="w-full h-full object-contain"
         />
