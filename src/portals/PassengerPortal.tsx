@@ -40,6 +40,27 @@ interface PassengerPortalProps {
 
 type PassengerStep = 'tickets' | 'landing' | 'menu' | 'checkout' | 'tracking';
 
+/**
+ * Resolve image paths returned by the API against the Vite base path.
+ * Supports absolute URLs, data/blob URLs, and backend paths such as
+ * /assets/images/example.jpg. This is required for GitHub Pages /busbite/.
+ */
+function resolveImageUrl(imagePath?: string | null): string {
+  if (!imagePath) return '';
+
+  const value = imagePath.trim();
+  if (!value) return '';
+
+  if (/^(https?:)?\/\//i.test(value) || /^(data:|blob:)/i.test(value)) {
+    return value;
+  }
+
+  const base = import.meta.env.BASE_URL || '/';
+  const cleanBase = base.endsWith('/') ? base : `${base}/`;
+  const cleanPath = value.replace(/^\/+/, '');
+  return `${cleanBase}${cleanPath}`;
+}
+
 const ORDER_STEPS: { key: Order['status']; label: string }[] = [
   { key: 'NEW', label: 'Paid' },
   { key: 'ACCEPTED', label: 'Accepted' },
@@ -1026,7 +1047,7 @@ export function PassengerPortal({
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="h-24 relative bg-slate-100">
               <img
-                src="/src/assets/images/highway_plaza_hero_1795667339325.jpg"
+                src={resolveImageUrl('/assets/images/highway_plaza_hero_1795667339325.jpg')}
                 alt="Highway dining plaza"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -1121,7 +1142,7 @@ export function PassengerPortal({
                     }`}
                   >
                     <img
-                      src={rest.heroImage}
+                      src={resolveImageUrl(rest.heroImage)}
                       alt={rest.name}
                       className="w-16 h-16 rounded-xl object-cover bg-slate-100 shrink-0"
                       referrerPolicy="no-referrer"
@@ -1282,7 +1303,7 @@ export function PassengerPortal({
                   </div>
 
                   <img
-                    src={item.image}
+                    src={resolveImageUrl(item.image)}
                     alt={item.name}
                     className="w-16 h-16 rounded-xl object-cover bg-slate-100 shrink-0 self-center"
                     referrerPolicy="no-referrer"
