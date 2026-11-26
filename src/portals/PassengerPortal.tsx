@@ -33,7 +33,50 @@ import type { BusTicketBooking, Order, OrderType, PlatformState, Restaurant } fr
  * Convert image paths returned by the API into GitHub Pages-safe URLs.
  * The API may return paths such as /assets/images/photo.jpg. Because this
  * app is deployed under /busbite/, those paths must include BASE_URL.
+ * 
+ * 
+ * 
  */
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || ''
+).replace(/\/+$/, '');
+
+/** Build API URLs for both local development and GitHub Pages production. */
+const getApiUrl = (path: string): string => {
+  if (/^https?:\/\//i.test(path)) return path;
+
+  if (API_BASE_URL) {
+    return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+
+  // In local development, allow the Vite proxy to forward /api requests.
+  if (import.meta.env.DEV) return path.startsWith('/') ? path : `/${path}`;
+
+  throw new Error(
+    'Backend URL is missing. Add VITE_API_URL to .env.production and rebuild the website.'
+  );
+};
+
+/** Parse JSON safely and show a useful message if the host returns HTML. */
+const readApiJson = async <T,>(response: Response): Promise<T> => {
+  const responseText = await response.text();
+  let data: unknown;
+
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    if (responseText.trimStart().startsWith('<')) {
+      throw new Error(
+        `The API returned an HTML page instead of JSON (HTTP ${response.status}). Check VITE_API_URL and the backend route.`
+      );
+    }
+    throw new Error(`The API returned invalid JSON (HTTP ${response.status}).`);
+  }
+
+  return data as T;
+};
+
 const getBusBiteImageUrl = (imagePath?: string | null): string => {
   if (!imagePath) return '';
 
@@ -386,7 +429,7 @@ export function PassengerPortal({
     setSubmitting(true);
     setCheckoutError(null);
     try {
-      const res = await fetch('/api/orders', {
+      const res = await fetch(getApiUrl('/api/orders'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -404,7 +447,7 @@ export function PassengerPortal({
           simulateOutcome,
         }),
       });
-      const json = (await res.json()) as { ok?: boolean; order?: Order; error?: string };
+      const json = await readApiJson<{ ok?: boolean; order?: Order; error?: string }>(res);
       if (json.order) {
         setTrackedOrderId(json.order.id);
         setIdempotencyKey(`idem-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
@@ -452,20 +495,7 @@ const handleBookBusTicket = async () => {
   setTicketError(null);
 
   try {
-    // Use the deployed backend URL
-    const API_BASE_URL = (
-      import.meta.env.VITE_API_URL || ''
-    ).replace(/\/+$/, '');
-
-    if (!API_BASE_URL && !import.meta.env.DEV) {
-      throw new Error(
-        'Backend URL is missing. Please configure VITE_API_URL.'
-      );
-    }
-
-    const requestUrl = `${API_BASE_URL}/api/tickets`;
-
-    const res = await fetch(requestUrl, {
+    const res = await fetch(getApiUrl('/api/tickets'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -482,28 +512,12 @@ const handleBookBusTicket = async () => {
       }),
     });
 
-    // Safely read backend response
-    const responseText = await res.text();
-
-    let json: {
+    // Safely read backend response, including non-JSON error pages.
+    const json = await readApiJson<{
       ok?: boolean;
       ticket?: BusTicketBooking;
       error?: string;
-    };
-
-    try {
-      json = responseText
-        ? JSON.parse(responseText)
-        : {};
-    } catch {
-      if (responseText.trim().startsWith('<')) {
-        throw new Error(
-          `Backend returned HTML instead of JSON (HTTP ${res.status}). Check VITE_API_URL and your Render deployment.`
-        );
-      }
-
-      throw new Error('Invalid JSON response from backend.');
-    }
+    }>(res);
 
     if (!res.ok || !json.ticket) {
       throw new Error(
