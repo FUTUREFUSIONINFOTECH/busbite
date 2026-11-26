@@ -1172,27 +1172,65 @@ async function startServer() {
     }
   });
 
-  app.get('/api/qr/:token/png', async (req, res) => {
-    const { token } = req.params;
-    const baseUrl =
-      (req.query.origin as string) ||
+
+app.get('/api/qr/:token/png', async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'QR token is required',
+      });
+    }
+
+    // Full deployed frontend URL, including /busbite/
+    const appUrl = (
       process.env.APP_URL ||
-      `${req.protocol}://${req.get('host')}`;
-    const targetUrl = `${baseUrl.replace(/\/$/, '')}/?view=passenger&qr=${encodeURIComponent(token)}`;
-    try {
-      const buffer = await QRCode.toBuffer(targetUrl, {
+      'https://futurefusioninfotech.github.io/busbite/'
+    ).replace(/\/+$/, '');
+
+    // Generate the passenger QR destination
+    const targetUrl = new URL(`${appUrl}/`);
+
+    targetUrl.searchParams.set('view', 'passenger');
+    targetUrl.searchParams.set('qr', token);
+
+    // Generate PNG
+    const buffer = await QRCode.toBuffer(
+      targetUrl.toString(),
+      {
         type: 'png',
         margin: 2,
         width: 512,
-        color: { dark: '#0F172A', light: '#FFFFFF' },
-      });
-      res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Content-Disposition', `attachment; filename="${token}.png"`);
-      res.send(buffer);
-    } catch {
-      res.status(500).json({ error: 'Failed to generate QR PNG' });
-    }
-  });
+        color: {
+          dark: '#0F172A',
+          light: '#FFFFFF',
+        },
+        errorCorrectionLevel: 'H',
+      }
+    );
+
+    res.set({
+      'Content-Type': 'image/png',
+      'Content-Disposition':
+        `attachment; filename="${encodeURIComponent(token)}.png"`,
+      'Content-Length': buffer.length,
+      'Cache-Control': 'no-store',
+    });
+
+    return res.status(200).send(buffer);
+
+  } catch (error) {
+    console.error('QR PNG generation error:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate QR PNG',
+    });
+  }
+});
+
 
   // QR Scan Tracking & Validation
   app.post('/api/qr/scan', (req, res) => {
