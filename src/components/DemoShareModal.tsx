@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Compass, Copy, Download, ExternalLink, Film, QrCode, X } from 'lucide-react';
 import type { PlatformState, PortalView } from '../types/platform';
 
@@ -86,14 +87,15 @@ export function DemoShareModal({
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-xs p-4"
+  return createPortal(
+    (
+      <div
+      className="fixed inset-0 z-[100000] flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-950/50 backdrop-blur-sm p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="demo-share-title"
     >
-      <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+      <div className="relative z-[100001] my-auto bg-white border border-slate-200 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto overscroll-contain shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10 gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <img
@@ -290,6 +292,8 @@ export function DemoShareModal({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    ),
+    document.body
   );
 }
