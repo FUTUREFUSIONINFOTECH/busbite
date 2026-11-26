@@ -1056,7 +1056,7 @@ export function PassengerPortal({
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="h-24 relative bg-slate-100">
               <img
-                src="/src/assets/images/highway_plaza_hero_1795667339325.jpg"
+                src={getBusBiteImageUrl('/assets/images/highway_plaza_hero_1795667339325.jpg')}
                 alt="Highway dining plaza"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
