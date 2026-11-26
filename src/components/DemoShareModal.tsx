@@ -25,16 +25,64 @@ export function DemoShareModal({
 
   if (!open) return null;
 
-  const origin = window.location.origin;
-  const demoUrl = origin;
+  // Vite BASE_URL includes the GitHub Pages subpath (for example /busbite/).
+  // Using only window.location.origin drops that subpath and creates broken links.
+  const demoUrl = new URL(
+    import.meta.env.BASE_URL || '/',
+    window.location.origin
+  ).toString();
+
+  // In production, VITE_API_URL must point to the deployed backend (Render).
+  // In local development only, fall back to the current origin.
+  const apiBaseUrl = (
+    import.meta.env.VITE_API_URL ||
+    (import.meta.env.DEV ? window.location.origin : '')
+  ).replace(/\/+$/, '');
+
+  const buildPassengerUrl = (token: string) => {
+    const url = new URL(demoUrl);
+    url.searchParams.set('view', 'passenger');
+    url.searchParams.set('qr', token);
+    return url.toString();
+  };
+
+  const buildQrEndpointUrl = (token: string, format: 'svg' | 'png') => {
+    if (!apiBaseUrl) return '';
+
+    const endpoint =
+      `${apiBaseUrl}/api/qr/${encodeURIComponent(token)}/${format}`;
+    return `${endpoint}?origin=${encodeURIComponent(demoUrl)}`;
+  };
 
   const handleCopy = async (text: string, key: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+
       setCopiedKey(key);
       window.setTimeout(() => setCopiedKey(null), 2000);
     } catch {
-      // Fallback ignored
+      // Fallback for browsers where Clipboard API is unavailable.
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      const copied = document.execCommand('copy');
+      textarea.remove();
+
+      if (copied) {
+        setCopiedKey(key);
+        window.setTimeout(() => setCopiedKey(null), 2000);
+      } else {
+        console.error('Unable to copy URL to clipboard');
+      }
     }
   };
 
@@ -144,7 +192,9 @@ export function DemoShareModal({
               {state.qrCodes.map((qr) => {
                 const vehicle = state.vehicles.find((v) => v.id === qr.vehicleId);
                 const route = state.routes.find((r) => r.id === qr.routeId);
-                const deepLink = `${origin}/?view=passenger&qr=${encodeURIComponent(qr.token)}`;
+                const deepLink = buildPassengerUrl(qr.token);
+                const qrSvgUrl = buildQrEndpointUrl(qr.token, 'svg');
+                const qrPngUrl = buildQrEndpointUrl(qr.token, 'png');
 
                 return (
                   <div
@@ -162,16 +212,25 @@ export function DemoShareModal({
                         {route?.name}
                       </p>
 
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-center mb-3">
-                        <img
-  src={`${(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')}/api/qr/${encodeURIComponent(qr.token)}/svg?origin=${encodeURIComponent(origin)}`}
-  alt={`QR ${qr.token}`}
-  className="w-24 h-24 bg-white p-1.5 rounded-lg border border-slate-200 shrink-0"
-  referrerPolicy="no-referrer"
-  onError={(e) => {
-    console.error('QR image loading failed:', e.currentTarget.src);
-  }}
-/>
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-center mb-3 min-h-[120px]">
+                        {qrSvgUrl ? (
+                          <img
+                            src={qrSvgUrl}
+                            alt={`QR ${qr.token}`}
+                            className="w-24 h-24 bg-white p-1.5 rounded-lg border border-slate-200 shrink-0"
+                            referrerPolicy="no-referrer"
+                            onError={(event) => {
+                              console.error(
+                                'QR image loading failed:',
+                                event.currentTarget.src
+                              );
+                            }}
+                          />
+                        ) : (
+                          <p className="text-xs text-red-600 text-center">
+                            Backend URL is missing. Set VITE_API_URL and rebuild.
+                          </p>
+                        )}
                       </div>
 
                       <div className="text-xs font-mono text-slate-600 text-center mb-3">
@@ -201,14 +260,27 @@ export function DemoShareModal({
                           {copiedKey === qr.id ? <Check className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
                           {copiedKey === qr.id ? 'Copied' : 'Copy URL'}
                         </button>
-                        <a
-                          href={`/api/qr/${encodeURIComponent(qr.token)}/png?origin=${encodeURIComponent(origin)}`}
-                          download={`${qr.token}.png`}
-                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          PNG
-                        </a>
+                        {qrPngUrl ? (
+                          <a
+                            href={qrPngUrl}
+                            download={`${qr.token}.png`}
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+                            title={`Download ${qr.token}.png`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            PNG
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-400 cursor-not-allowed"
+                            title="Configure VITE_API_URL to enable PNG downloads"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            PNG
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
