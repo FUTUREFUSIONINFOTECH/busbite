@@ -50,10 +50,13 @@ export function DesktopBrowserFrame({
                 </div>
                 <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-emerald-100 truncate">
                   <img
-                    src={`${import.meta.env.BASE_URL}assets/images/BusBite_Mobile_App_Logo_012a5e2c.png`}
-                    alt="BusBite"
-                    className="w-7 h-7 rounded-md object-contain bg-white shrink-0"
-                  />
+  src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
+  alt="BusBite"
+  className="w-7 h-7 rounded-md object-contain bg-white shrink-0"
+  onError={(e) => {
+    console.error('BusBite logo failed to load:', e.currentTarget.src);
+  }}
+/>
                   <span className="truncate">{title}</span>
                   {subtitle && (
                     <span className="text-emerald-300/80 font-normal truncate">· {subtitle}</span>
