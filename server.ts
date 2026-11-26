@@ -1150,86 +1150,101 @@ async function startServer() {
     res.json({ ok: true, state });
   });
 
-  // Dynamic QR SVG & PNG Generator
+  // Resolve the public BusBite frontend URL used inside generated QR codes.
+  // APP_URL must include the GitHub Pages project path: /busbite/.
+  const DEFAULT_APP_URL = 'https://futurefusioninfotech.github.io/busbite/';
+
+  const getPassengerQrUrl = (token: string, requestedOrigin?: unknown) => {
+    const configuredUrl = process.env.APP_URL || DEFAULT_APP_URL;
+    let baseUrl = configuredUrl;
+
+    // Accept an explicit frontend URL only when it is a valid HTTP(S) URL.
+    if (typeof requestedOrigin === 'string' && requestedOrigin.trim()) {
+      try {
+        const requested = new URL(requestedOrigin);
+        if (requested.protocol === 'https:' || requested.protocol === 'http:') {
+          // GitHub Pages project sites require their repository subpath.
+          if (requested.hostname.endsWith('github.io') && requested.pathname === '/') {
+            baseUrl = configuredUrl;
+          } else {
+            baseUrl = requested.toString();
+          }
+        }
+      } catch {
+        // Ignore malformed query origins and use APP_URL instead.
+      }
+    }
+
+    const targetUrl = new URL(baseUrl);
+    // A GitHub Pages user-site URL must retain the BusBite repository path.
+    if (targetUrl.hostname.endsWith('github.io') && targetUrl.pathname === '/') {
+      targetUrl.pathname = '/busbite/';
+    } else if (!targetUrl.pathname.endsWith('/')) {
+      targetUrl.pathname += '/';
+    }
+    targetUrl.search = '';
+    targetUrl.searchParams.set('view', 'passenger');
+    targetUrl.searchParams.set('qr', token);
+    return targetUrl.toString();
+  };
+
+  // Dynamic QR SVG Generator
   app.get('/api/qr/:token/svg', async (req, res) => {
     const { token } = req.params;
-    const baseUrl =
-      (req.query.origin as string) ||
-      process.env.APP_URL ||
-      `${req.protocol}://${req.get('host')}`;
-    const targetUrl = `${baseUrl.replace(/\/$/, '')}/?view=passenger&qr=${encodeURIComponent(token)}`;
+    if (!token) {
+      return res.status(400).json({ ok: false, error: 'QR token is required' });
+    }
+
     try {
+      const targetUrl = getPassengerQrUrl(token, req.query.origin);
       const svg = await QRCode.toString(targetUrl, {
         type: 'svg',
         margin: 1,
         width: 240,
         color: { dark: '#0F172A', light: '#FFFFFF' },
+        errorCorrectionLevel: 'H',
       });
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.send(svg);
-    } catch {
-      res.status(500).json({ error: 'Failed to generate QR SVG' });
+
+      res.set({
+        'Content-Type': 'image/svg+xml; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+      return res.status(200).send(svg);
+    } catch (error) {
+      console.error('QR SVG generation error:', error);
+      return res.status(500).json({ ok: false, error: 'Failed to generate QR SVG' });
     }
   });
 
-
-app.get('/api/qr/:token/png', async (req, res) => {
-  const { token } = req.params;
-
-  try {
+  // Dynamic QR PNG download endpoint
+  app.get('/api/qr/:token/png', async (req, res) => {
+    const { token } = req.params;
     if (!token) {
-      return res.status(400).json({
-        success: false,
-        error: 'QR token is required',
-      });
+      return res.status(400).json({ ok: false, error: 'QR token is required' });
     }
 
-    // Full deployed frontend URL, including /busbite/
-    const appUrl = (
-      process.env.APP_URL ||
-      'https://futurefusioninfotech.github.io/busbite/'
-    ).replace(/\/+$/, '');
-
-    // Generate the passenger QR destination
-    const targetUrl = new URL(`${appUrl}/`);
-
-    targetUrl.searchParams.set('view', 'passenger');
-    targetUrl.searchParams.set('qr', token);
-
-    // Generate PNG
-    const buffer = await QRCode.toBuffer(
-      targetUrl.toString(),
-      {
+    try {
+      const targetUrl = getPassengerQrUrl(token, req.query.origin);
+      const buffer = await QRCode.toBuffer(targetUrl, {
         type: 'png',
         margin: 2,
         width: 512,
-        color: {
-          dark: '#0F172A',
-          light: '#FFFFFF',
-        },
+        color: { dark: '#0F172A', light: '#FFFFFF' },
         errorCorrectionLevel: 'H',
-      }
-    );
+      });
 
-    res.set({
-      'Content-Type': 'image/png',
-      'Content-Disposition':
-        `attachment; filename="${encodeURIComponent(token)}.png"`,
-      'Content-Length': buffer.length,
-      'Cache-Control': 'no-store',
-    });
-
-    return res.status(200).send(buffer);
-
-  } catch (error) {
-    console.error('QR PNG generation error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to generate QR PNG',
-    });
-  }
-});
+      res.set({
+        'Content-Type': 'image/png',
+        'Content-Disposition': `attachment; filename=\"${token.replace(/[^a-zA-Z0-9_-]/g, '_')}.png\"`,
+        'Content-Length': String(buffer.length),
+        'Cache-Control': 'no-store',
+      });
+      return res.status(200).send(buffer);
+    } catch (error) {
+      console.error('QR PNG generation error:', error);
+      return res.status(500).json({ ok: false, error: 'Failed to generate QR PNG' });
+    }
+  });
 
 
   // QR Scan Tracking & Validation
@@ -2123,6 +2138,14 @@ app.get('/api/qr/:token/png', async (req, res) => {
     addAudit('SUPER_ADMIN', 'SETTLEMENT_DISBURSED', settlement.id, `Settled ₹${netPayable} to ${rest.name}`);
     broadcastState();
     res.status(201).json({ ok: true, settlement });
+  });
+
+  // Unknown API routes should return JSON instead of the SPA index.html.
+  app.use('/api', (req, res) => {
+    res.status(404).json({
+      ok: false,
+      error: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+    });
   });
 
   // Vite / Static Serving
