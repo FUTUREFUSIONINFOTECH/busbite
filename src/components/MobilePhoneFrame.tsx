@@ -103,7 +103,7 @@ export function MobilePhoneFrame<T extends string>({
                 <div className="flex items-center justify-between gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200/80 px-2 py-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <img
-                      src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
+                      src={`${import.meta.env.BASE_URL}assets/images/BusBite_Mobile_App_Logo_012a5e2c.png`}
                       alt="BusBite"
                       className="h-8 w-8 rounded-lg object-contain bg-white border border-emerald-200 shrink-0"
                     />
@@ -153,7 +153,7 @@ export function MobilePhoneFrame<T extends string>({
                 <div className="flex items-center justify-between gap-1.5">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <img
-                      src={`${import.meta.env.BASE_URL}assets/aistudio/BusBite_Mobile_App_Logo_012a5e2c.png`}
+                      src={`${import.meta.env.BASE_URL}assets/images/BusBite_Mobile_App_Logo_012a5e2c.png`}
                       alt="BusBite"
                       className="h-10 w-10 rounded-lg object-contain bg-white border border-emerald-100 shrink-0"
                     />
