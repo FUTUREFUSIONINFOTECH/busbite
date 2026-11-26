@@ -29,6 +29,36 @@ import { MobilePhoneFrame } from '../components/MobilePhoneFrame';
 import { RouteMapVisualizer } from '../components/RouteMapVisualizer';
 import type { BusTicketBooking, Order, OrderType, PlatformState, Restaurant } from '../types/platform';
 
+/**
+ * Convert image paths returned by the API into GitHub Pages-safe URLs.
+ * The API may return paths such as /assets/images/photo.jpg. Because this
+ * app is deployed under /busbite/, those paths must include BASE_URL.
+ */
+const getBusBiteImageUrl = (imagePath?: string | null): string => {
+  if (!imagePath) return '';
+
+  const value = imagePath.trim();
+  if (!value) return '';
+
+  // Do not rewrite absolute URLs, data URLs, or blob URLs.
+  if (/^(https?:)?\/\//i.test(value) || /^(data|blob):/i.test(value)) {
+    return value;
+  }
+
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const cleanPath = value
+    .replace(/^\/+/, '')
+    .replace(/^src\/assets\//, 'assets/');
+
+  // Avoid adding /busbite/ twice if the API already returns it.
+  if (cleanPath.startsWith(normalizedBase.replace(/^\/+/, ''))) {
+    return `/${cleanPath}`;
+  }
+
+  return `${normalizedBase}${cleanPath}`;
+};
+
 interface PassengerPortalProps {
   state: PlatformState;
   activeQrToken: string;
@@ -39,27 +69,6 @@ interface PassengerPortalProps {
 }
 
 type PassengerStep = 'tickets' | 'landing' | 'menu' | 'checkout' | 'tracking';
-
-/**
- * Resolve image paths returned by the API against the Vite base path.
- * Supports absolute URLs, data/blob URLs, and backend paths such as
- * /assets/images/example.jpg. This is required for GitHub Pages /busbite/.
- */
-function resolveImageUrl(imagePath?: string | null): string {
-  if (!imagePath) return '';
-
-  const value = imagePath.trim();
-  if (!value) return '';
-
-  if (/^(https?:)?\/\//i.test(value) || /^(data:|blob:)/i.test(value)) {
-    return value;
-  }
-
-  const base = import.meta.env.BASE_URL || '/';
-  const cleanBase = base.endsWith('/') ? base : `${base}/`;
-  const cleanPath = value.replace(/^\/+/, '');
-  return `${cleanBase}${cleanPath}`;
-}
 
 const ORDER_STEPS: { key: Order['status']; label: string }[] = [
   { key: 'NEW', label: 'Paid' },
@@ -1047,7 +1056,7 @@ export function PassengerPortal({
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="h-24 relative bg-slate-100">
               <img
-                src={resolveImageUrl('/assets/images/highway_plaza_hero_1795667339325.jpg')}
+                src="/src/assets/images/highway_plaza_hero_1795667339325.jpg"
                 alt="Highway dining plaza"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -1142,7 +1151,7 @@ export function PassengerPortal({
                     }`}
                   >
                     <img
-                      src={resolveImageUrl(rest.heroImage)}
+                      src={getBusBiteImageUrl(rest.heroImage)}
                       alt={rest.name}
                       className="w-16 h-16 rounded-xl object-cover bg-slate-100 shrink-0"
                       referrerPolicy="no-referrer"
@@ -1303,7 +1312,7 @@ export function PassengerPortal({
                   </div>
 
                   <img
-                    src={resolveImageUrl(item.image)}
+                    src={getBusBiteImageUrl(item.image)}
                     alt={item.name}
                     className="w-16 h-16 rounded-xl object-cover bg-slate-100 shrink-0 self-center"
                     referrerPolicy="no-referrer"
