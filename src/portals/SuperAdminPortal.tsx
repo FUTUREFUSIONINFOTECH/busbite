@@ -1117,11 +1117,14 @@ export function SuperAdminPortal({
 
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-4">
                       <img
-                        src={`/api/qr/${encodeURIComponent(qr.token)}/svg?origin=${encodeURIComponent(origin)}`}
-                        alt={`QR ${qr.token}`}
-                        className="w-24 h-24 bg-white p-1.5 rounded-lg border border-slate-200 shrink-0"
-                        referrerPolicy="no-referrer"
-                      />
+  src={`${(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')}/api/qr/${encodeURIComponent(qr.token)}/svg?origin=${encodeURIComponent(origin)}`}
+  alt={`QR ${qr.token}`}
+  className="w-24 h-24 bg-white p-1.5 rounded-lg border border-slate-200 shrink-0"
+  referrerPolicy="no-referrer"
+  onError={(e) => {
+    console.error('QR image loading failed:', e.currentTarget.src);
+  }}
+/>
                       <div className="min-w-0 text-xs space-y-1.5">
                         <div className="font-mono font-semibold text-slate-900 truncate">{qr.token}</div>
                         <div className="text-slate-600 font-mono tabular-nums">

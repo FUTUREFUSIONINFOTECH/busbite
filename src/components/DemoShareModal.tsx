@@ -164,11 +164,14 @@ export function DemoShareModal({
 
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-center mb-3">
                         <img
-                          src={`/api/qr/${encodeURIComponent(qr.token)}/svg?origin=${encodeURIComponent(origin)}`}
-                          alt={`QR code for ${vehicle?.regNumber}`}
-                          className="w-36 h-36 object-contain"
-                          referrerPolicy="no-referrer"
-                        />
+  src={`${(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')}/api/qr/${encodeURIComponent(qr.token)}/svg?origin=${encodeURIComponent(origin)}`}
+  alt={`QR ${qr.token}`}
+  className="w-24 h-24 bg-white p-1.5 rounded-lg border border-slate-200 shrink-0"
+  referrerPolicy="no-referrer"
+  onError={(e) => {
+    console.error('QR image loading failed:', e.currentTarget.src);
+  }}
+/>
                       </div>
 
                       <div className="text-xs font-mono text-slate-600 text-center mb-3">
