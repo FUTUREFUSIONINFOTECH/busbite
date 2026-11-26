@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
   Download,
@@ -58,6 +59,11 @@ export function DemoVideoStudioModal({
   const logoImgRef = useRef<HTMLImageElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const [playing, setPlaying] = useState<boolean>(true);
   const [elapsed, setElapsed] = useState<number>(0);
@@ -176,9 +182,9 @@ export function DemoVideoStudioModal({
           'in one synchronized live platform.',
         ],
         bullets: [
-          `${state.routes.length} Highway Corridors · ${state.vehicles.length} Active Coaches`,
-          `${state.restaurants.filter((r) => r.status === 'APPROVED').length} Approved Partner Restaurants`,
-          `${state.tickets.length} Live Ticket PNRs · ${state.orders.length} Pre-Orders`,
+          `${stateRef.current.routes.length} Highway Corridors · ${stateRef.current.vehicles.length} Active Coaches`,
+          `${stateRef.current.restaurants.filter((r) => r.status === 'APPROVED').length} Approved Partner Restaurants`,
+          `${stateRef.current.tickets.length} Live Ticket PNRs · ${stateRef.current.orders.length} Pre-Orders`,
         ],
       },
       {
@@ -624,9 +630,9 @@ export function DemoVideoStudioModal({
       } else {
         // Scene 6: Super Admin KPI & Settlements
         const kpis = [
-          { k: 'Restaurants', v: `${state.restaurants.length} Partners` },
-          { k: 'Live Trips', v: `${state.trips.length} Corridors` },
-          { k: 'Ticket + Food', v: `${state.tickets.length + state.orders.length} Txns` },
+          { k: 'Restaurants', v: `${stateRef.current.restaurants.length} Partners` },
+          { k: 'Live Trips', v: `${stateRef.current.trips.length} Corridors` },
+          { k: 'Ticket + Food', v: `${stateRef.current.tickets.length + stateRef.current.orders.length} Txns` },
         ];
         kpis.forEach((item, idx) => {
           const kx = mx + 24 + idx * 160;
@@ -672,10 +678,15 @@ export function DemoVideoStudioModal({
     ctx.fill();
   };
 
-  // Animation loop while modal is open
+  // Animation loop: draw at up to 30 FPS and update React UI only 4 times/sec.
+  // This avoids re-rendering the entire modal on every animation frame.
   useEffect(() => {
     if (!open) return;
+
     let lastTs = performance.now();
+    let lastDrawTs = 0;
+    let lastUiTs = 0;
+    const frameInterval = 1000 / 30;
 
     const loop = (now: number) => {
       const dt = Math.min(0.1, (now - lastTs) / 1000);
@@ -691,7 +702,7 @@ export function DemoVideoStudioModal({
             const canvas = canvasRef.current;
             const ctx = canvas?.getContext('2d');
             if (ctx) drawFrame(ctx, next);
-            if (recorderRef.current && recorderRef.current.state === 'recording') {
+            if (recorderRef.current?.state === 'recording') {
               recorderRef.current.stop();
             }
             playingRef.current = false;
@@ -700,22 +711,50 @@ export function DemoVideoStudioModal({
           }
           next = 0;
         }
+
         elapsedRef.current = next;
-        setElapsed(next);
+        if (now - lastUiTs >= 250 || next === 0) {
+          lastUiTs = now;
+          setElapsed(next);
+        }
       }
 
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
-      if (ctx) drawFrame(ctx, elapsedRef.current);
+      if (now - lastDrawTs >= frameInterval) {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (ctx) drawFrame(ctx, elapsedRef.current);
+        lastDrawTs = now;
+      }
 
       rafRef.current = requestAnimationFrame(loop);
     };
 
+    // Draw the first frame immediately so the modal never opens with a blank canvas.
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (ctx) drawFrame(ctx, elapsedRef.current);
+
     rafRef.current = requestAnimationFrame(loop);
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     };
-  }, [open, state]);
+  }, [open]);
+
+  // Lock background scrolling while open and support Escape to close.
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -742,9 +781,9 @@ export function DemoVideoStudioModal({
     const mimeType = candidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
 
     try {
-      const stream = canvas.captureStream(30);
+      const stream = canvas.captureStream(24);
       const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 2_500_000 })
+        ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 1_500_000 })
         : new MediaRecorder(stream);
 
       const chunks: BlobPart[] = [];
@@ -776,14 +815,14 @@ export function DemoVideoStudioModal({
 
   const activeSceneIndex = Math.min(6, Math.floor(elapsed / 4));
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 backdrop-blur-xs p-3 sm:p-4"
+      className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-950/65 backdrop-blur-sm p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="demo-video-studio-title"
     >
-      <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl">
+      <div className="relative z-[100001] bg-white border border-slate-200 rounded-2xl max-w-3xl w-full max-h-[92dvh] overflow-y-auto overscroll-contain shadow-2xl">
         {/* Header */}
         <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between gap-3 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -821,7 +860,7 @@ export function DemoVideoStudioModal({
               ref={canvasRef}
               width={1280}
               height={720}
-              className="w-full h-auto block aspect-video"
+              className="w-full h-auto block aspect-video" aria-label="Animated BusBite platform demo preview"
             />
           </div>
 
@@ -934,6 +973,7 @@ export function DemoVideoStudioModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
