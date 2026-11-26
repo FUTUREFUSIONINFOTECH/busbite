@@ -444,41 +444,98 @@ export function PassengerPortal({
     );
   };
 
-  const handleBookBusTicket = async () => {
-    if (!selectedBookingTrip || selectedSeats.length === 0) return;
-    setTicketBusy(true);
-    setTicketError(null);
-    try {
-      const res = await fetch('/api/tickets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tripId: selectedBookingTrip.trip.id,
-          seatNumbers: selectedSeats,
-          boardingPoint,
-          droppingPoint,
-          passengerName,
-          passengerPhone,
-          passengerAge: Number(passengerAge) || 27,
-          passengerGender,
-        }),
-      });
-      const json = (await res.json()) as { ok?: boolean; ticket?: BusTicketBooking; error?: string };
-      if (!res.ok || !json.ticket) {
-        setTicketError(json.error || 'Could not book bus ticket');
-        return;
-      }
-      setLatestTicketId(json.ticket.id);
-      setSeatNumber(json.ticket.seatNumbers.join(', '));
-      setSelectedSeats([]);
-      setBookingTripId(null);
-      setTicketSubTab('my-tickets');
-    } catch (err) {
-      setTicketError(err instanceof Error ? err.message : 'Network error booking ticket');
-    } finally {
-      setTicketBusy(false);
+ 
+const handleBookBusTicket = async () => {
+  if (!selectedBookingTrip || selectedSeats.length === 0) return;
+
+  setTicketBusy(true);
+  setTicketError(null);
+
+  try {
+    // Use the deployed backend URL
+    const API_BASE_URL = (
+      import.meta.env.VITE_API_URL || ''
+    ).replace(/\/+$/, '');
+
+    if (!API_BASE_URL && !import.meta.env.DEV) {
+      throw new Error(
+        'Backend URL is missing. Please configure VITE_API_URL.'
+      );
     }
-  };
+
+    const requestUrl = `${API_BASE_URL}/api/tickets`;
+
+    const res = await fetch(requestUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tripId: selectedBookingTrip.trip.id,
+        seatNumbers: selectedSeats,
+        boardingPoint,
+        droppingPoint,
+        passengerName,
+        passengerPhone,
+        passengerAge: Number(passengerAge) || 27,
+        passengerGender,
+      }),
+    });
+
+    // Safely read backend response
+    const responseText = await res.text();
+
+    let json: {
+      ok?: boolean;
+      ticket?: BusTicketBooking;
+      error?: string;
+    };
+
+    try {
+      json = responseText
+        ? JSON.parse(responseText)
+        : {};
+    } catch {
+      if (responseText.trim().startsWith('<')) {
+        throw new Error(
+          `Backend returned HTML instead of JSON (HTTP ${res.status}). Check VITE_API_URL and your Render deployment.`
+        );
+      }
+
+      throw new Error('Invalid JSON response from backend.');
+    }
+
+    if (!res.ok || !json.ticket) {
+      throw new Error(
+        json.error || `Could not book ticket (HTTP ${res.status})`
+      );
+    }
+
+    // Booking successful
+    setLatestTicketId(json.ticket.id);
+
+    setSeatNumber(
+      json.ticket.seatNumbers.join(', ')
+    );
+
+    setSelectedSeats([]);
+    setBookingTripId(null);
+    setTicketSubTab('my-tickets');
+
+  } catch (err) {
+    console.error('Bus ticket booking error:', err);
+
+    setTicketError(
+      err instanceof Error
+        ? err.message
+        : 'Network error booking ticket'
+    );
+
+  } finally {
+    setTicketBusy(false);
+  }
+};
+
 
   const handleOrderFoodFromTicket = (ticket: BusTicketBooking) => {
     const qr =
